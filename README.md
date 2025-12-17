@@ -1,52 +1,54 @@
 🛫 FlightOnTime API
-A FlightOnTime API é o coração de um ecossistema inteligente voltado para a aviação, focado em prever atrasos de voos utilizando Machine Learning e integração de dados em tempo real. O sistema orquestra informações de múltiplas fontes (clima, tráfego e histórico de voos) para fornecer uma probabilidade precisa de pontualidade.
+A FlightOnTime API é o coração de um ecossistema inteligente voltado para a aviação, focado em prever atrasos de voos utilizando Machine Learning e integração de dados em tempo real. O sistema orquestra informações de múltiplas fontes para fornecer uma probabilidade precisa de pontualidade.
 
 🚀 Tecnologias Utilizadas
-Java 17 & Spring Boot 3.2 (Base da API)
+Java 17 & Spring Boot 3.2: Base robusta da API.
 
-Spring WebFlux (WebClient) (Chamadas externas de alta performance)
+Spring WebFlux (WebClient): Chamadas externas assíncronas de alta performance.
 
-Jakarta Validation (Garantia de integridade de dados)
+Jakarta Validation: Garantia de integridade dos dados de entrada.
 
-Lombok (Produtividade e código limpo)
+Lombok: Código limpo e produtivo.
 
-Python/Flask (Serviço externo de Machine Learning)
+Python/Flask: Microserviço dedicado ao modelo de Machine Learning.
 
 🛠️ Funcionalidades Principais
-Previsão Híbrida: Aceita entrada manual de dados ou busca automática via número do voo.
+Previsão Híbrida: Permite entrada manual de dados ou busca automática via número do voo.
 
 Orquestração Real-Time: Preparada para integrar dados da AeroAPI (FlightAware).
 
-Monitoramento de Tráfego: Lógica integrada para avaliar o impacto do trânsito nos aeroportos de destino.
+Monitoramento de Tráfego: Lógica integrada para avaliar o impacto do tráfego nos aeroportos.
 
-Tratamento de Erros Global: Respostas amigáveis em JSON para facilitar o consumo pelo Front-end.
+Tratamento de Erros Global: Centralizado via ExceptionHandler, garantindo que o Front-end receba JSONs amigáveis mesmo em falhas críticas.
 
-📈 Desafios Técnicos & Dificuldades
-Durante o desenvolvimento (especialmente no calor do Hackathon), enfrentamos obstáculos significativos:
+📈 Jornada de Desenvolvimento: Desafios & Superação
+Durante o calor do Hackathon, enfrentamos batalhas técnicas que fortaleceram o projeto:
 
-Integração de Tipos: A conversão de dados brutos (Strings/Integers) para objetos de precisão (Double) exigiu refatoração rigorosa para evitar erros de cálculo no modelo de ML.
+A "Ponte" Java-Python: Integrar duas linguagens diferentes exigiu um cuidado especial na tipagem de dados. Refatoramos a comunicação para garantir que Doubles e Strings fossem interpretados corretamente pelo modelo de ML.
 
-Ambiente Distribuído: Orquestrar a comunicação entre o Java (Backend) e o Python (ML) demandou uma lógica de fallback robusta para que a API não parasse de funcionar caso o serviço de ML ficasse offline.
+Resiliência do Sistema: Implementamos uma lógica de fallback. Se o serviço de Machine Learning oscilar, a API Java responde com elegância, informando o status ao usuário sem travar a aplicação.
 
-Gestão de Portas e Processos: Conflitos de execução simultânea no ambiente de desenvolvimento local (Port 8080) exigiram um gerenciamento cuidadoso dos processos do sistema operacional.
+Gestão de Conflitos de Ambiente: Superamos desafios de orquestração de portas e versões de JDK, garantindo que o ambiente local simulasse perfeitamente um ambiente de produção distribuído.
 
-⚠️ Pontos de Melhoria (Roadmap/Limitações)
-Como todo projeto em fase de MVP (Mínimo Produto Viável), ainda existem pontos que pretendemos evoluir:
+⚠️ Roadmap & Evolução (MVP)
+Como todo projeto inovador, já mapeamos os próximos passos:
 
-Dependência de Chaves de API: O sistema depende fortemente de chaves de terceiros (AeroAPI). A falta de acesso imediato nos levou a implementar Mocks (simulações) realistas para garantir a continuidade da demo.
+Independência de Mocks: Evoluir as simulações da AeroAPI para uma integração de produção completa.
 
-Conversão de Unidades: Atualmente, a conversão de Milhas Náuticas para Quilômetros é feita de forma estática; uma versão futura deve considerar rotas geodésicas mais precisas.
+Geolocalização Avançada: Substituir conversões estáticas por cálculos de rotas geodésicas em tempo real.
 
-Persistência: No estágio atual, a API foca no processamento em tempo real e ainda não implementa um banco de dados para histórico de previsões.
+Persistência de Dados: Implementar banco de dados (PostgreSQL/MongoDB) para análise histórica de previsões.
 
 ⚙️ Como Rodar o Projeto
-Clone o repositório.
-
 Certifique-se de que o Python/Flask esteja rodando na porta 5000.
 
-Execute ./mvnw spring-boot:run ou inicie via sua IDE favorita na porta 8080.
+Execute ./mvnw spring-boot:run ou inicie via IDE na porta 8080.
 
-LinkedIn : [ www.linkedin.com/in/sergio-de-oliveira-rafael-47ba29286 ]
-Telefone : (24) 999840645
-E-mail  : sergiodeoliveirarafael@gmail.com
+Acesse o endpoint de teste: http://localhost:8080/api/previsao/status
 
+📫 Contato
+LinkedIn: Sergio de Oliveira Rafael
+
+Telefone: (24) 99984-0645
+
+E-mail: sergiodeoliveirarafael@gmail.com
