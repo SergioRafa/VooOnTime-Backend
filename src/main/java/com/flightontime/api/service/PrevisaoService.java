@@ -1,9 +1,14 @@
 package com.flightontime.api.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flightontime.api.dto.ClimaResponseDTO;
 import com.flightontime.api.dto.PrevisaoRequest;
 import com.flightontime.api.dto.PrevisaoResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -17,23 +22,44 @@ public class PrevisaoService {
     private static final DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
-    private static final String ML_API_URL = "http://localhost:5000/predict";
-
+    private final String mlApiUrl;
+    private final double thresholdProb;
     private final WebClient webClient;
+    private final ObjectMapper objectMapper;
+    private final ClimaService climaService;
+    private final NoticiasService noticiasService;
 
-    public PrevisaoService() {
+    // Construtor com Injeção de Dependências e Configurações
+    public PrevisaoService(
+            ClimaService climaService,
+            NoticiasService noticiasService,
+            @Value("${app.integration.ml.url}") String mlApiUrl,
+            @Value("${app.integration.ml.threshold-prob}") double thresholdProb) {
+
         this.webClient = WebClient.create();
+        this.objectMapper = new ObjectMapper();
+        this.climaService = climaService;
+        this.noticiasService = noticiasService;
+        this.mlApiUrl = mlApiUrl;
+        this.thresholdProb = thresholdProb;
     }
 
+    /**
+     * Lógica para Entrada Manual (Formulário do Wesley)
+     */
     public PrevisaoResponse preverAtraso(PrevisaoRequest request) {
-        // 1. Pré-processamento
-        Map<String, Object> featuresJson = preProcessar(request);
+        // 1. Busca Clima e Trânsito Real
+        ClimaResponseDTO climaOrigem = climaService.buscarClima(request.getOrigem(), request.getDataPartida());
+        boolean trafegoCriticoOrigem = noticiasService.buscarTransitoCritico(request.getOrigem());
 
-        // 2. Chamada à API de Machine Learning
+        // 2. Transforma dados para o formato que a IA (Python) entende
+        Map<String, Object> featuresJson = preProcessar(request, climaOrigem, trafegoCriticoOrigem);
+
+        // 3. Chama o Flask (Python)
         Double probabilidade = chamarModeloML(featuresJson);
 
-        // 3. Pós-processamento
-        String status = (probabilidade >= 0.5) ? "Atrasado" : "Pontual";
+        // 4. Formata a resposta
+        String status = (probabilidade >= this.thresholdProb) ? "Atrasado" : "Pontual";
 
         PrevisaoResponse response = new PrevisaoResponse();
         response.setPrevisao(status);
@@ -42,85 +68,69 @@ public class PrevisaoService {
         return response;
     }
 
-    private Map<String, Object> preProcessar(PrevisaoRequest request) {
+    /**
+     * Lógica para Entrada via Número do Voo (FlightAware)
+     * ADICIONADO PARA CORRIGIR O ERRO NO CONTROLLER
+     */
+    public PrevisaoResponse preverAtrasoComVooReal(String ident) {
+        // TODO: Integrar com FlightAwareService para buscar origem/destino real
+        // Por enquanto, criamos um mock (simulação) para não travar sua apresentação
+        PrevisaoRequest mockRequest = new PrevisaoRequest();
+        mockRequest.setOrigem("GIG");
+        mockRequest.setDestino("JFK");
+        mockRequest.setDataPartida(LocalDateTime.now().format(FORMATTER));
+        mockRequest.setDistanciaKm(400.0);
+        mockRequest.setCompanhia("Latam");
+
+        return preverAtraso(mockRequest);
+    }
+
+    private Map<String, Object> preProcessar(PrevisaoRequest request, ClimaResponseDTO clima, boolean trafegoCritico) {
         LocalDateTime dataHora;
         try {
             dataHora = LocalDateTime.parse(request.getDataPartida(), FORMATTER);
         } catch (DateTimeParseException e) {
-            System.err.println("Erro ao parsear a data, usando tempo atual.");
             dataHora = LocalDateTime.now();
         }
 
         Map<String, Object> features = new HashMap<>();
-        features.put("distancia_km", request.getDistanciaKm());
-        features.put("hora_partida", dataHora.getHour());
-        features.put("dia_semana", dataHora.getDayOfWeek().getValue());
+        features.put("distancia_km", Double.valueOf(request.getDistanciaKm()));
+        features.put("hora_partida", Double.valueOf(dataHora.getHour()));
+        features.put("dia_semana", Double.valueOf(dataHora.getDayOfWeek().getValue()));
+        features.put("origem_GIG", request.getOrigem().equalsIgnoreCase("GIG") ? 1.0 : 0.0);
+        features.put("temp_celsius", clima.getTemperaturaC());
+        features.put("umidade_perc", clima.getUmidadeRelativa());
+        features.put("vento_kmh", clima.getVelocidadeVentoKmH());
+        features.put("trafego_critico", trafegoCritico ? 1.0 : 0.0);
 
-        // --- ADIÇÃO DE DADOS REAIS DE TRÂNSITO ---
-        double trafegoCritico = verificarTrafegoReal(request.getOrigem());
-        features.put("trafego_critico", trafegoCritico);
-        // -----------------------------------------
-
-        features.put("origem_GIG", request.getOrigem().equals("GIG") ? 1.0 : 0.0);
 
         return features;
     }
 
     private Double chamarModeloML(Map<String, Object> features) {
         try {
-            Map<String, Object> mlResponse = webClient.post()
-                    .uri(ML_API_URL)
-                    .bodyValue(features)
+            String requestBody = objectMapper.writeValueAsString(features);
+            System.out.println("Enviando para ML: " + requestBody);
+
+            String mlResponse = webClient.post()
+                    .uri(this.mlApiUrl)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(requestBody)
                     .retrieve()
-                    .bodyToMono(HashMap.class)
+                    .bodyToMono(String.class)
                     .block();
 
-            if (mlResponse != null && mlResponse.containsKey("probabilidade")) {
-                return ((Number) mlResponse.get("probabilidade")).doubleValue();
-            }
+            Map<String, Object> responseMap = objectMapper.readValue(mlResponse, Map.class);
+            Object prob = responseMap.get("probabilidade");
 
-            System.err.println("API ML offline ou retornou formato inesperado. Usando simulação.");
+            return Double.valueOf(prob.toString());
+
+        } catch (WebClientRequestException e) {
+            System.err.println("ERRO: Falha de conexão com a API ML. Aplicando Fallback.");
             return 0.20;
-
         } catch (Exception e) {
-            System.err.println("ERRO DE INTEGRAÇÃO COM A API ML (" + e.getMessage() + "). Usando fallback.");
-            return 0.20;
-        }
-    }
-
-    private double verificarTrafegoReal(String aeroportoDestino) {
-        try {
-            // Lógica de Negócio:
-            // Aqui você pode integrar uma API real ou manter a simulação de notícias
-            if ("GRU".equals(aeroportoDestino) || "GIG".equals(aeroportoDestino)) {
-                System.out.println("Monitorando trânsito para " + aeroportoDestino + ": [ALERTA DE ACIDENTE DETECTADO]");
-                return 1.0; // Trânsito crítico
-            }
-            return 0.0;
-
-        } catch (Exception e) {
-            return 0.0;
-        }
-    }
-
-    public PrevisaoResponse preverAtrasoComVooReal(String ident) {
-        try {
-            // Por enquanto, como você ainda não tem a API KEY,
-            // vamos simular que buscamos os dados na FlightAware.
-            // Assim o código compila e você consegue testar o fluxo!
-
-            PrevisaoRequest mockRequest = new PrevisaoRequest();
-            mockRequest.setCompanhia("Simulada via FlightAware");
-            mockRequest.setOrigem("GRU");
-            mockRequest.setDestino("GIG");
-            mockRequest.setDataPartida("2025-12-16T22:00:00");
-            mockRequest.setDistanciaKm(400.0);
-
-            // Chama a lógica de previsão que você já tem
-            return this.preverAtraso(mockRequest);
-
-        } catch (Exception e) {
-            throw new RuntimeException("Erro ao buscar dados do voo real: " + e.getMessage());
+            System.err.println("ERRO inesperado: " + e.getMessage());
+            return 0.50;
         }
     }
 }

@@ -18,7 +18,8 @@ public class StormGlassResponseDTO {
 
         @Data
         public static class ValueData {
-            private Double noaa; // Fonte de dados
+            private Double noaa; // Fonte de dados climaticos : valor fornecido pela NOAA
+            // (National Oceanic and Atmospheric Administration).
         }
     }
 }

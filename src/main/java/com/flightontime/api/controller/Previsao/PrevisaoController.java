@@ -12,10 +12,11 @@ import java.util.Map;
 
 @CrossOrigin(origins = "*")
 @RestController
-@RequestMapping("/api/v1")
-public class PrevisaoController {
 
+@RequestMapping("/api/previsao")
+public class PrevisaoController {
     private final PrevisaoService previsaoService;
+
 
     public PrevisaoController(PrevisaoService previsaoService) {
         this.previsaoService = previsaoService;
@@ -23,7 +24,6 @@ public class PrevisaoController {
 
     /**
      * OPÇÃO 1: Entrada Manual
-     * O Wesley envia o JSON completo do Front-end.
      */
     @PostMapping("/predict")
     public ResponseEntity<PrevisaoResponse> preverAtraso(@Valid @RequestBody PrevisaoRequest request) {
@@ -38,7 +38,6 @@ public class PrevisaoController {
      */
     @GetMapping("/predict/flight/{ident}")
     public ResponseEntity<PrevisaoResponse> preverPorVooReal(@PathVariable String ident) {
-        // Certifique-se de que o método 'preverAtrasoComVooReal' foi adicionado ao Service
         PrevisaoResponse response = previsaoService.preverAtrasoComVooReal(ident);
         return ResponseEntity.ok(response);
     }

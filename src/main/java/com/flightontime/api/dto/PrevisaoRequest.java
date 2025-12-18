@@ -3,7 +3,6 @@ package com.flightontime.api.dto;
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-// Lembre-se que essas importações funcionam porque você adicionou
 
 
 @Data
