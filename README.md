@@ -217,9 +217,10 @@ Desenvolvido com dedicação por Sergio de Oliveira Rafael 🚀
 
 Canal        Link
 
-LinkedIn:    linkedin.com/in/sergio-de-oliveira-rafael-47ba29286
+LinkedIn:    linkedin.com/in/sergio-rafael
 
 E-mail:      sergiodeoliveirarafael@gmail.com
 
 WhatsApp:    (24) 99984-0645
+
 
